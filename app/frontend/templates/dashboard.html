@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>{{ title or "LoL Winrate Dashboard" }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/styles.css') }}"
+    />
+    <!-- Chart.js desde CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <main class="container">
+        <h1>Dashboard de Winrate por Campeón</h1>
+        <p class="subtitle">
+            Visualización de estadísticas agregadas a partir de las partidas del dataset.
+        </p>
+
+        <section class="card">
+            <h2>Top campeones por cantidad de partidas</h2>
+            <canvas id="championWinrateChart"></canvas>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', path='js/dashboard.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>{{ title or "LoL Winrate Predictor" }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/styles.css') }}"
+    />
+</head>
+<body>
+    <main class="container">
+        <header class="header">
+            <div>
+                <h1>LoL Winrate Predictor</h1>
+                <p class="subtitle">
+                    Selecciona los campeones de cada equipo y obtén una predicción de la probabilidad de victoria.
+                </p>
+            </div>
+            <a href="/dashboard" class="btn-secondary">
+                Ver dashboard de estadísticas
+            </a>
+        </header>
+
+        <form id="prediction-form" class="card">
+            <section class="team-section">
+                <h2>Tu equipo</h2>
+
+                <input
+                    type="text"
+                    id="team-filter"
+                    class="champion-search"
+                    placeholder="Buscar campeón aliado..."
+                    autocomplete="off"
+                />
+
+                <div class="champion-inputs" id="team-selects"></div>
+            </section>
+
+            <section class="team-section">
+                <h2>Equipo enemigo</h2>
+
+                <input
+                    type="text"
+                    id="enemy-filter"
+                    class="champion-search"
+                    placeholder="Buscar campeón enemigo..."
+                    autocomplete="off"
+                />
+
+                <div class="champion-inputs" id="enemy-selects"></div>
+            </section>
+
+            <button type="submit" class="btn-primary">Calcular winrate</button>
+            <p id="form-error" class="error-message hidden"></p>
+        </form>
+
+        <section id="result" class="card hidden">
+            <h2>Resultado</h2>
+            <p id="winrate-value" class="winrate"></p>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', path='js/app.js') }}"></script>
+</body>
+</html>

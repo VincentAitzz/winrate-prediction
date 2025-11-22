@@ -1,0 +1,180 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+    margin: 0;
+    background: #020617;              /* Fondo oscuro completo */
+    color: #e5e7eb;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.container {
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+/* Header con botón a dashboard */
+
+.header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (min-width: 720px) {
+    .header {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+}
+
+h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    color: #9ca3af;
+}
+
+/* Botones */
+
+.btn-primary {
+    margin-top: 1rem;
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: none;
+    background: linear-gradient(135deg, #22c55e, #22d3ee);
+    color: #020617;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(34, 197, 94, 0.35);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 1rem;
+    border-radius: 999px;
+    border: 1px solid #374151;
+    background: #020617;
+    color: #e5e7eb;
+    font-size: 0.9rem;
+    text-decoration: none;
+    gap: 0.35rem;
+    white-space: nowrap;
+}
+
+.btn-secondary:hover {
+    border-color: #22c55e;
+}
+
+/* Cards y secciones */
+
+.card {
+    background: #111827;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 20px 30px rgba(0, 0, 0, 0.4);
+    margin-bottom: 1.5rem;
+}
+
+.team-section + .team-section {
+    margin-top: 1.5rem;
+}
+
+.team-section h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Buscador de campeones */
+
+.champion-search {
+    width: 100%;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #374151;
+    background: #020617;
+    color: #e5e7eb;
+}
+
+.champion-search::placeholder {
+    color: #6b7280;
+}
+
+.champion-search:focus {
+    outline: none;
+    border-color: #22c55e;
+}
+
+/* Selectores de campeones */
+
+.champion-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.5rem;
+}
+
+.champion-inputs select {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #374151;
+    background: #020617;
+    color: #e5e7eb;
+    width: 100%;
+    cursor: pointer;
+}
+
+.champion-inputs select:focus {
+    outline: none;
+    border-color: #22c55e;
+}
+
+.champion-inputs select option {
+    background: #020617;
+    color: #e5e7eb;
+}
+
+.hidden {
+    display: none;
+}
+
+.error-message {
+    margin-top: 0.75rem;
+    color: #f97316;
+    font-size: 0.9rem;
+}
+
+.winrate {
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-align: center;
+}
