@@ -4,10 +4,13 @@
     <meta charset="UTF-8" />
     <title>{{ title or "LoL Winrate Predictor" }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link
-        rel="stylesheet"
-        href="{{ url_for('static', path='css/styles.css') }}"
-    />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}" />
+    
+    <!-- Estilos Inline para el layout y panel -->
+    <style>
+        /* Variables y Reset se manejan en styles.css, aquí solo estructura crítica si falla CSS externo */
+        .hidden { display: none; }
+    </style>
 </head>
 <body>
     <main class="container">
@@ -15,52 +18,104 @@
             <div>
                 <h1>LoL Winrate Predictor</h1>
                 <p class="subtitle">
-                    Selecciona los campeones de cada equipo y obtén una predicción de la probabilidad de victoria.
+                    Arma los equipos y analiza las probabilidades.
                 </p>
             </div>
             <a href="/dashboard" class="btn-secondary">
-                Ver dashboard de estadísticas
+                Ver dashboard
             </a>
         </header>
 
-        <form id="prediction-form" class="card">
-            <section class="team-section">
-                <h2>Tu equipo</h2>
+        <div class="main-grid">
+            <!-- COLUMNA IZQUIERDA: Formulario de Selección -->
+            <div class="left-column">
+                <form id="prediction-form" class="card">
+                    <section class="team-section">
+                        <h2>Tu equipo (Azul)</h2>
+                        <input type="text" id="team-filter" class="champion-search" placeholder="Buscar campeón aliado..." autocomplete="off" />
+                        <!-- Importante: Añadir atributo data-team="blue" para que JS sepa de qué equipo es -->
+                        <div class="champion-inputs" id="team-selects" data-team="blue"></div>
+                    </section>
 
-                <input
-                    type="text"
-                    id="team-filter"
-                    class="champion-search"
-                    placeholder="Buscar campeón aliado..."
-                    autocomplete="off"
-                />
+                    <section class="team-section">
+                        <h2>Equipo enemigo (Rojo)</h2>
+                        <input type="text" id="enemy-filter" class="champion-search" placeholder="Buscar campeón enemigo..." autocomplete="off" />
+                        <div class="champion-inputs" id="enemy-selects" data-team="red"></div>
+                    </section>
 
-                <div class="champion-inputs" id="team-selects"></div>
-            </section>
+                    <button type="submit" class="btn-primary">Calcular Probabilidad de Victoria</button>
+                    <p id="form-error" class="error-message hidden"></p>
+                </form>
 
-            <section class="team-section">
-                <h2>Equipo enemigo</h2>
+                <section id="result" class="card hidden" style="margin-top: 2rem;">
+                    <h2>Resultado de la Predicción</h2>
+                    <p id="winrate-value" class="winrate"></p>
+                </section>
+            </div>
 
-                <input
-                    type="text"
-                    id="enemy-filter"
-                    class="champion-search"
-                    placeholder="Buscar campeón enemigo..."
-                    autocomplete="off"
-                />
+            <!-- COLUMNA DERECHA: Panel de Información Dinámica -->
+            <aside id="champion-info-panel" class="info-panel hidden">
+                <div class="info-header">
+                    <!-- La imagen se llenará con JS -->
+                    <img id="info-img" src="" alt="" class="info-champ-img hidden">
+                    <div>
+                        <h3 id="info-name" style="margin:0;">Selecciona un campeón</h3>
+                        <small id="info-role" style="color:#888;">Datos históricos</small>
+                    </div>
+                </div>
 
-                <div class="champion-inputs" id="enemy-selects"></div>
-            </section>
+                <!-- Sección de Runas -->
+                <div class="stat-group">
+                    <h4>💎 Runas Recomendadas</h4>
+                    <ul id="info-runes-list" class="stat-list">
+                        <li style="color: #666; font-style: italic;">Pasa el mouse sobre un campeón seleccionado...</li>
+                    </ul>
+                </div>
 
-            <button type="submit" class="btn-primary">Calcular winrate</button>
-            <p id="form-error" class="error-message hidden"></p>
-        </form>
-
-        <section id="result" class="card hidden">
-            <h2>Resultado</h2>
-            <p id="winrate-value" class="winrate"></p>
-        </section>
+                <!-- Sección de Counters -->
+                <div class="stat-group">
+                    <h4>⚠️ Counters (Peor Winrate)</h4>
+                    <ul id="info-counters-list" class="stat-list">
+                        <!-- Se llenará con JS -->
+                    </ul>
+                </div>
+            </aside>
+        </div>
     </main>
+
+    <!-- DATOS INYECTADOS -->
+    <script id="data-counters" type="application/json">
+        {{ counters_data | tojson if counters_data else '{}' }}
+    </script>
+    <script id="data-runes" type="application/json">
+        {{ runes_data | tojson if runes_data else '{}' }}
+    </script>
+
+    <script>
+        function loadData(id) {
+            const element = document.getElementById(id);
+            if (!element) return {};
+            const text = element.textContent.trim();
+            
+            // CORRECCIÓN AQUÍ: Evitamos escribir las llaves juntas para que Jinja no se confunda.
+            // Si el texto empieza con la marca de template, Jinja no se ejecutó.
+            if (text.startsWith('{' + '{')) {
+                console.warn('Backend data not detected for ' + id + '. Using empty defaults.');
+                return {};
+            }
+            
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Error parsing JSON from ' + id, e);
+                return {};
+            }
+        }
+
+        // Cargar datos de forma segura
+        window.CHAMPION_COUNTERS = loadData('data-counters');
+        window.CHAMPION_RUNES = loadData('data-runes');
+    </script>
 
     <script src="{{ url_for('static', path='js/app.js') }}"></script>
 </body>

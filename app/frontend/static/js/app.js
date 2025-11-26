@@ -1,36 +1,75 @@
-let CHAMPIONS = [];
+let CHAMPIONS = []; // Array para los selectores (ordenado)
+let CHAMPION_MAP = {}; // Objeto para búsqueda rápida por ID { 103: {name: "Ahri", ...} }
+let RUNE_MAP = {}; // Objeto para nombres de runas { 8000: "Precision", ... }
+let DD_VERSION = "13.24.1"; // Valor por defecto, se actualiza al cargar
 
 /**
- * Carga la lista de campeones desde Riot Data Dragon (última versión)
- * y los deja en la variable global CHAMPIONS ordenados alfabéticamente.
+ * Carga inicial de datos estáticos (Versión, Campeones, Runas)
  */
-async function loadChampions() {
-    // Usamos es_ES para mostrar los nombres en español
-    const versionsRes = await fetch("https://ddragon.leagueoflegends.com/api/versions.json");
-    const versions = await versionsRes.json();
-    const latest = versions[0];
+async function loadStaticData() {
+    try {
+        // 1. Obtener última versión
+        const versionsRes = await fetch("https://ddragon.leagueoflegends.com/api/versions.json");
+        const versions = await versionsRes.json();
+        DD_VERSION = versions[0];
 
-    const champsRes = await fetch(
-        `https://ddragon.leagueoflegends.com/cdn/${latest}/data/es_ES/champion.json`
-    );
-    const data = await champsRes.json();
+        // 2. Cargar Campeones
+        const champsRes = await fetch(
+            `https://ddragon.leagueoflegends.com/cdn/${DD_VERSION}/data/es_ES/champion.json`
+        );
+        const champData = await champsRes.json();
 
-    CHAMPIONS = Object.values(data.data)
-        .map((champ) => ({
-            id: Number(champ.key), // ID numérico usado por Riot
-            name: champ.name,      // Nombre en español
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+        // Procesamos campeones
+        CHAMPIONS = Object.values(champData.data)
+            .map((champ) => ({
+                id: Number(champ.key),   // ID Numérico (para la API de predicción)
+                alias: champ.id,         // ID Texto (para URLs de imágenes, ej: "LeeSin")
+                name: champ.name,        // Nombre visual
+                tags: champ.tags         // Roles (Mago, Asesino, etc.)
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
 
-    // Una vez cargados, construimos los selects y activamos la búsqueda
-    createChampionSelects("team-selects", "team");
-    createChampionSelects("enemy-selects", "enemy");
-    setupSearchInput("team-filter", "team");
-    setupSearchInput("enemy-filter", "enemy");
+        // Llenar el mapa para búsquedas rápidas
+        CHAMPIONS.forEach(c => {
+            CHAMPION_MAP[c.id] = c;
+        });
+
+        // 3. Cargar Runas (para mostrar nombres en el panel)
+        const runesRes = await fetch(
+            `https://ddragon.leagueoflegends.com/cdn/${DD_VERSION}/data/es_ES/runesReforged.json`
+        );
+        const runesData = await runesRes.json();
+        
+        // Aplanamos la estructura de runas para búsqueda fácil
+        runesData.forEach(tree => {
+            // Runas clave suelen estar en los slots
+            tree.slots.forEach(slot => {
+                slot.runes.forEach(rune => {
+                    RUNE_MAP[rune.id] = {
+                        name: rune.name,
+                        icon: rune.icon // Ruta parcial de imagen
+                    };
+                });
+            });
+        });
+
+        // 4. Inicializar UI
+        createChampionSelects("team-selects", "team");
+        createChampionSelects("enemy-selects", "enemy");
+        setupSearchInput("team-filter", "team");
+        setupSearchInput("enemy-filter", "enemy");
+
+        console.log(`Datos cargados: ${CHAMPIONS.length} campeones, Versión ${DD_VERSION}`);
+
+    } catch (err) {
+        console.error("Error cargando datos estáticos:", err);
+        document.getElementById("form-error").textContent = "Error cargando datos de Riot. Recarga la página.";
+        document.getElementById("form-error").classList.remove("hidden");
+    }
 }
 
 /**
- * Crea 5 <select> para el equipo indicado, usando la lista global CHAMPIONS.
+ * Crea los <select> y les añade el evento para actualizar el panel.
  */
 function createChampionSelects(containerId, namePrefix) {
     const container = document.getElementById(containerId);
@@ -39,11 +78,11 @@ function createChampionSelects(containerId, namePrefix) {
     for (let i = 0; i < 5; i++) {
         const select = document.createElement("select");
         select.name = namePrefix;
+        select.classList.add("champ-select"); // Clase para estilo
 
         const placeholder = document.createElement("option");
         placeholder.value = "";
         placeholder.textContent = `Campeón ${i + 1} (opcional)`;
-        placeholder.selected = true;
         select.appendChild(placeholder);
 
         CHAMPIONS.forEach((champ) => {
@@ -53,13 +92,91 @@ function createChampionSelects(containerId, namePrefix) {
             select.appendChild(option);
         });
 
+        // EVENTOS PARA EL PANEL LATERAL
+        // Al cambiar la selección
+        select.addEventListener("change", (e) => {
+            if (e.target.value) updateInfoPanel(e.target.value);
+        });
+
+        // Al hacer foco (para teclado o click)
+        select.addEventListener("focus", (e) => {
+            if (e.target.value) updateInfoPanel(e.target.value);
+        });
+
         container.appendChild(select);
     }
 }
 
 /**
- * Configura el input de búsqueda para filtrar las opciones de todos
- * los <select> de un equipo.
+ * Lógica principal para actualizar el panel derecho
+ */
+function updateInfoPanel(championId) {
+    const id = Number(championId);
+    const champData = CHAMPION_MAP[id];
+    const panel = document.getElementById("champion-info-panel");
+
+    if (!champData) return;
+
+    // Mostrar panel
+    panel.classList.remove("hidden");
+
+    // 1. Header: Imagen y Nombre
+    const imgEl = document.getElementById("info-img");
+    imgEl.src = `https://ddragon.leagueoflegends.com/cdn/${DD_VERSION}/img/champion/${champData.alias}.png`;
+    imgEl.classList.remove("hidden");
+    
+    document.getElementById("info-name").textContent = champData.name;
+    document.getElementById("info-role").textContent = champData.tags.join(" • ");
+
+    // 2. Estadísticas Inyectadas (Counters)
+    // Accedemos a las variables globales definidas en el HTML
+    const countersData = window.CHAMPION_COUNTERS ? window.CHAMPION_COUNTERS[id] : null;
+    const countersList = document.getElementById("info-counters-list");
+    countersList.innerHTML = "";
+
+    if (countersData && countersData.counters && countersData.counters.length > 0) {
+        // Tomamos solo los top 5 para no saturar
+        countersData.counters.slice(0, 5).forEach(c => {
+            const enemyName = CHAMPION_MAP[c.enemy_id] ? CHAMPION_MAP[c.enemy_id].name : `ID ${c.enemy_id}`;
+            const li = document.createElement("li");
+            // Nota: Si es counter, significa que MI winrate es bajo.
+            // c.winrate es MI winrate contra él.
+            li.innerHTML = `
+                <span>vs ${enemyName}</span>
+                <span class="winrate-low">${c.winrate}% WR</span>
+            `;
+            countersList.appendChild(li);
+        });
+    } else {
+        countersList.innerHTML = "<li style='color:#666'>Sin datos suficientes</li>";
+    }
+
+    // 3. Estadísticas Inyectadas (Runas)
+    const runesData = window.CHAMPION_RUNES ? window.CHAMPION_RUNES[id] : null;
+    const runesList = document.getElementById("info-runes-list");
+    runesList.innerHTML = "";
+
+    if (runesData && runesData.length > 0) {
+        runesData.slice(0, 3).forEach(r => {
+            const runeInfo = RUNE_MAP[r.rune_id];
+            const runeName = runeInfo ? runeInfo.name : `Runa ${r.rune_id}`;
+            // Icono opcional
+            const iconUrl = runeInfo ? `https://ddragon.leagueoflegends.com/cdn/img/${runeInfo.icon}` : '';
+            
+            const li = document.createElement("li");
+            li.innerHTML = `
+                <span>${runeName}</span>
+                <span class="winrate-high">${r.winrate}% WR</span>
+            `;
+            runesList.appendChild(li);
+        });
+    } else {
+        runesList.innerHTML = "<li style='color:#666'>Sin datos de runas</li>";
+    }
+}
+
+/**
+ * Configura el input de búsqueda
  */
 function setupSearchInput(inputId, selectName) {
     const input = document.getElementById(inputId);
@@ -67,47 +184,38 @@ function setupSearchInput(inputId, selectName) {
 
     input.addEventListener("input", () => {
         const term = input.value.toLowerCase();
-
         const options = document.querySelectorAll(`select[name="${selectName}"] option`);
+        
         options.forEach((opt) => {
-            if (opt.value === "") {
-                // siempre mostramos el placeholder
-                opt.hidden = false;
-                return;
-            }
+            if (opt.value === "") return; // Ignorar placeholder
             const text = opt.textContent.toLowerCase();
-            opt.hidden = !text.includes(term);
+            const match = text.includes(term);
+            opt.hidden = !match;
+            // Si el seleccionado se oculta, deseleccionar visualmente (opcional)
         });
     });
 }
 
 /**
- * Obtiene los IDs de campeones seleccionados desde los <select>.
+ * Parsea los inputs para enviar al backend
  */
 function parseChampionInputs(name) {
     const selects = Array.from(document.querySelectorAll(`select[name="${name}"]`));
-    const values = selects
+    return selects
         .map((sel) => sel.value.trim())
         .filter((v) => v !== "")
         .map((v) => Number(v))
         .filter((v) => Number.isFinite(v) && v >= 0);
-
-    return values;
 }
 
+// Inicialización
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("prediction-form");
     const resultSection = document.getElementById("result");
     const winrateValue = document.getElementById("winrate-value");
     const errorMessage = document.getElementById("form-error");
 
-    // Cargamos los campeones (async) al iniciar
-    loadChampions().catch((err) => {
-        console.error("Error al cargar campeones desde Data Dragon:", err);
-        errorMessage.textContent =
-            "No se pudieron cargar los campeones. Revisa tu conexión a internet e intenta recargar la página.";
-        errorMessage.classList.remove("hidden");
-    });
+    loadStaticData();
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -118,13 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const enemyChampions = parseChampionInputs("enemy");
 
         if (teamChampions.length === 0 || enemyChampions.length === 0) {
-            errorMessage.textContent = "Debes seleccionar al menos 1 campeón por equipo.";
-            errorMessage.classList.remove("hidden");
-            return;
-        }
-
-        if (teamChampions.length > 5 || enemyChampions.length > 5) {
-            errorMessage.textContent = "Máximo 5 campeones por equipo.";
+            errorMessage.textContent = "Selecciona al menos 1 campeón por equipo.";
             errorMessage.classList.remove("hidden");
             return;
         }
@@ -137,25 +239,28 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const response = await fetch("/api/v1/predict", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.detail || "Error al obtener la predicción.");
+                throw new Error(errorData.detail || "Error en la predicción.");
             }
 
             const data = await response.json();
-            const winrate = (data.winrate * 100).toFixed(2);
+            const winrate = (data.winrate * 100).toFixed(1);
 
-            winrateValue.textContent = `Probabilidad de victoria: ${winrate}%`;
+            // Color del resultado según probabilidad
+            winrateValue.textContent = `${winrate}%`;
+            winrateValue.className = "winrate"; // reset
+            if(data.winrate > 0.55) winrateValue.classList.add("winrate-high");
+            else if(data.winrate < 0.45) winrateValue.classList.add("winrate-low");
+
             resultSection.classList.remove("hidden");
         } catch (err) {
             console.error(err);
-            errorMessage.textContent = err.message || "Ocurrió un error inesperado.";
+            errorMessage.textContent = err.message || "Error inesperado.";
             errorMessage.classList.remove("hidden");
         }
     });
