@@ -7,9 +7,11 @@
 """
 
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import requests
+
 
 def get_latest_version() -> str:
     """Obtiene la última versión del juego desde Data Dragon."""
@@ -19,6 +21,7 @@ def get_latest_version() -> str:
     )
     versions_resp.raise_for_status()
     return versions_resp.json()[0]
+
 
 def fetch_champion_ids(version: str) -> list[int]:
     """Devuelve una lista de IDs numéricos de campeones."""
@@ -32,11 +35,9 @@ def fetch_champion_ids(version: str) -> list[int]:
 
     return [int(champ["key"]) for champ in data["data"].values()]
 
+
 def fetch_keystone_ids(version: str) -> list[int]:
-    """
-    Devuelve una lista de IDs de las Runas Clave (Keystones).
-    Las Keystones están siempre en el slot 0 de cada árbol de runas.
-    """
+
     print(f"Descargando runas versión {version}...")
     runes_resp = requests.get(
         f"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/runesReforged.json",
@@ -48,12 +49,13 @@ def fetch_keystone_ids(version: str) -> list[int]:
     keystones = []
     # Data es una lista de árboles (Precision, Domination, etc.)
     for tree in data:
-        # El slot 0 contiene las runas más importantes (Keystones)
+        # El slot 0 contiene las runas más importantes
         if tree["slots"]:
             for rune in tree["slots"][0]["runes"]:
                 keystones.append(rune["id"])
-    
+
     return keystones
+
 
 def main() -> None:
     raw_dir = Path("data/raw")
@@ -72,7 +74,7 @@ def main() -> None:
     n_runes = len(rune_ids)
     print(f"Datos obtenidos: {n_champions} Campeones y {n_runes} Keystones.")
 
-    n_matches = 5000
+    n_matches = 100000  # De 5k a 100k (lo siento, 5k es muy poquito)
 
     # 2. Generar Matrices de Campeones (Sin repetir en el mismo equipo)
     def random_team_champs() -> np.ndarray:
@@ -93,28 +95,26 @@ def main() -> None:
         "match_id": np.arange(1, n_matches + 1),
         # Team Stats
         "team_champ1": team_champ_matrix[:, 0],
-        "team_rune1":  team_rune_matrix[:, 0],
+        "team_rune1": team_rune_matrix[:, 0],
         "team_champ2": team_champ_matrix[:, 1],
-        "team_rune2":  team_rune_matrix[:, 1],
+        "team_rune2": team_rune_matrix[:, 1],
         "team_champ3": team_champ_matrix[:, 2],
-        "team_rune3":  team_rune_matrix[:, 2],
+        "team_rune3": team_rune_matrix[:, 2],
         "team_champ4": team_champ_matrix[:, 3],
-        "team_rune4":  team_rune_matrix[:, 3],
+        "team_rune4": team_rune_matrix[:, 3],
         "team_champ5": team_champ_matrix[:, 4],
-        "team_rune5":  team_rune_matrix[:, 4],
-        
+        "team_rune5": team_rune_matrix[:, 4],
         # Enemy Stats
         "enemy_champ1": enemy_champ_matrix[:, 0],
-        "enemy_rune1":  enemy_rune_matrix[:, 0],
+        "enemy_rune1": enemy_rune_matrix[:, 0],
         "enemy_champ2": enemy_champ_matrix[:, 1],
-        "enemy_rune2":  enemy_rune_matrix[:, 1],
+        "enemy_rune2": enemy_rune_matrix[:, 1],
         "enemy_champ3": enemy_champ_matrix[:, 2],
-        "enemy_rune3":  enemy_rune_matrix[:, 2],
+        "enemy_rune3": enemy_rune_matrix[:, 2],
         "enemy_champ4": enemy_champ_matrix[:, 3],
-        "enemy_rune4":  enemy_rune_matrix[:, 3],
+        "enemy_rune4": enemy_rune_matrix[:, 3],
         "enemy_champ5": enemy_champ_matrix[:, 4],
-        "enemy_rune5":  enemy_rune_matrix[:, 4],
-
+        "enemy_rune5": enemy_rune_matrix[:, 4],
         # Target (Win/Loss)
         "team_win": rng.integers(0, 2, size=n_matches),
     }
@@ -123,6 +123,7 @@ def main() -> None:
     df.to_csv(output_path, index=False)
     print(f"CSV generado exitosamente en: {output_path}")
     print("Columnas generadas:", list(df.columns[:4]), "...")
+
 
 if __name__ == "__main__":
     main()

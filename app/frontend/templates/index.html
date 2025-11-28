@@ -32,14 +32,12 @@
                 <form id="prediction-form" class="card">
                     <section class="team-section">
                         <h2>Tu equipo (Azul)</h2>
-                        <input type="text" id="team-filter" class="champion-search" placeholder="Buscar campeón aliado..." autocomplete="off" />
                         <!-- Importante: Añadir atributo data-team="blue" para que JS sepa de qué equipo es -->
                         <div class="champion-inputs" id="team-selects" data-team="blue"></div>
                     </section>
 
                     <section class="team-section">
                         <h2>Equipo enemigo (Rojo)</h2>
-                        <input type="text" id="enemy-filter" class="champion-search" placeholder="Buscar campeón enemigo..." autocomplete="off" />
                         <div class="champion-inputs" id="enemy-selects" data-team="red"></div>
                     </section>
 
@@ -111,6 +109,8 @@
                 return {};
             }
         }
+
+        
 
         // Cargar datos de forma segura
         window.CHAMPION_COUNTERS = loadData('data-counters');
