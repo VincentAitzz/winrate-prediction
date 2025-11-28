@@ -3,42 +3,34 @@ import json
 import numpy as np
 import pandas as pd
 from joblib import dump
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.ensemble import RandomForestClassifier  # <--- CAMBIO IMPORTANTE
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 
-
+# Asumimos que estas importaciones existen en tu proyecto
 from app.core.config import get_settings
 from app.services.features import selection_to_feature_vector
 
 class ChampionAnalyzer:
     """
     Clase dedicada a extraer estadísticas descriptivas del DataFrame de partidas.
+    (Misma lógica que tenías antes, no cambia).
     """
     def __init__(self, df: pd.DataFrame):
         self.df = df
         self.team_cols = ["team_champ1", "team_champ2", "team_champ3", "team_champ4", "team_champ5"]
         self.enemy_cols = ["enemy_champ1", "enemy_champ2", "enemy_champ3", "enemy_champ4", "enemy_champ5"]
-        
-
-        # Asume formato: team_rune1_primary, team_rune2_primary, etc.
         self.rune_cols = [c for c in df.columns if "rune" in c and "team" in c]
 
     def process_matchups(self) -> dict:
-
         print("Calculando estadísticas de matchups...")
         stats = {}
         
-        # Iteramos por las columnas de los 5 jugadores del equipo
         for i, col in enumerate(self.team_cols):
-            # Creamos un sub-dataframe temporal para este "slot" (jugador 1, 2, etc)
-            # Incluye: Campeón usado, Si ganó, y contra quién jugó (los 5 enemigos)
             temp_df = self.df[[col, "team_win"] + self.enemy_cols].copy()
             temp_df.rename(columns={col: "champion_id"}, inplace=True)
             
-            # Iteramos sobre los enemigos para construir pares (Yo vs Enemigo)
             for enemy_col in self.enemy_cols:
-
                 pair_stats = temp_df.groupby(["champion_id", enemy_col])["team_win"].agg(["count", "sum"])
                 
                 for (my_champ, enemy_champ), row in pair_stats.iterrows():
@@ -48,21 +40,18 @@ class ChampionAnalyzer:
                     if my_champ not in stats:
                         stats[my_champ] = {"total_games": 0, "wins": 0, "counters": {}}
                     
-                    # así que lo ajustaremos después o usamos lógica distinta para totales.
-                    # Para simplificar counters, nos enfocamos en el diccionario 'counters'.
-                    
                     if enemy_champ not in stats[my_champ]["counters"]:
                         stats[my_champ]["counters"][enemy_champ] = {"games": 0, "wins": 0}
                     
                     stats[my_champ]["counters"][enemy_champ]["games"] += row["count"]
                     stats[my_champ]["counters"][enemy_champ]["wins"] += row["sum"]
 
-        # Post-procesamiento para calcular porcentajes
         final_stats = {}
         for champ_id, data in stats.items():
             counter_list = []
             for enemy_id, enemy_data in data["counters"].items():
-                if enemy_data["games"] > 0: # Filtro mínimo de partidas
+                # FILTRO APLICADO: Mínimo 10 partidas para considerar el matchup
+                if enemy_data["games"] >= 10: 
                     wr = (enemy_data["wins"] / enemy_data["games"]) * 100
                     counter_list.append({
                         "enemy_id": enemy_id,
@@ -70,34 +59,28 @@ class ChampionAnalyzer:
                         "winrate": round(wr, 2)
                     })
             
-            # Ordenar counters: Aquellos contra los que tengo PEOR winrate
             counter_list.sort(key=lambda x: x["winrate"])
-            
             final_stats[champ_id] = {
-                "counters": counter_list[:10] # Top 10 peores matchups
+                "counters": counter_list[:10] 
             }
             
         return final_stats
 
     def process_runes(self) -> dict:
-
         if not self.rune_cols:
-            return {"error": "No se encontraron columnas de runas en el CSV"}
+            return {}
 
         print("Calculando estadísticas de runas...")
         rune_stats = {}
         
-        # Asociar Campeón -> Runa -> Win/Loss
-        # Asumiendo que team_champ1 corresponde a team_rune1
         for i in range(1, 6):
             champ_col = f"team_champ{i}"
-            rune_col = f"team_rune{i}" 
+            rune_col = f"team_rune{i}"
             
             if rune_col not in self.df.columns:
                 continue
                 
             temp_df = self.df[[champ_col, rune_col, "team_win"]]
-            
             groups = temp_df.groupby([champ_col, rune_col])["team_win"].agg(["count", "sum"])
             
             for (champ, rune), row in groups.iterrows():
@@ -114,7 +97,6 @@ class ChampionAnalyzer:
                     "winrate": round(wr, 2)
                 })
 
-        # Ordenar runas por popularidad (games)
         for champ in rune_stats:
             rune_stats[champ].sort(key=lambda x: x["games"], reverse=True)
             
@@ -125,19 +107,22 @@ def main() -> None:
     raw_path = Path("data/raw/matches_raw.csv")
     
     if not raw_path.exists():
-        print("CSV no encontrado.")
+        print(f"CSV no encontrado en {raw_path}. Ejecuta primero generate_raw_matches_csv.")
         return
 
-    print(f"Leyendo datos crudos desde: {raw_path}")
+    print(f"Leído datos desde: {raw_path}")
     df = pd.read_csv(raw_path)
 
-    # --- PARTE 1: Machine Learning ---
-    print("\n--- Iniciando Entrenamiento de Modelo ---")
+    # --- PARTE 1: Machine Learning (Random Forest) ---
+    print("\n--- Entrenando Random Forest (Esto puede tardar unos segundos) ---")
+    
     team_cols = ["team_champ1", "team_champ2", "team_champ3", "team_champ4", "team_champ5"]
     enemy_cols = ["enemy_champ1", "enemy_champ2", "enemy_champ3", "enemy_champ4", "enemy_champ5"]
 
-    features_list: list[np.ndarray] = []
-    
+    # Preparamos los vectores (features)
+    # Nota: Para datasets MUY grandes (millones), esto debería optimizarse con numpy puro,
+    # pero para <500k funciona bien.
+    features_list = []
     for _, row in df.iterrows():
         team = [int(row[c]) for c in team_cols]
         enemy = [int(row[c]) for c in enemy_cols]
@@ -151,26 +136,28 @@ def main() -> None:
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    model = LogisticRegression(max_iter=100000)
+    # CONFIGURACIÓN DEL MODELO
+    # n_estimators: Número de árboles (más es mejor pero más lento, 100 es estándar)
+    # n_jobs=-1: Usa todos los núcleos de tu CPU para ir rápido
+    model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+    
     model.fit(X_train, y_train)
     
-    print(f"Accuracy test: {model.score(X_test, y_test):.3f}")
+    acc = accuracy_score(y_test, model.predict(X_test))
+    print(f"Accuracy test: {acc:.3f}")
     
     model_path = Path(settings.model_path)
     model_path.parent.mkdir(parents=True, exist_ok=True)
     dump(model, model_path)
+    print(f"Modelo guardado en {model_path}")
 
     # --- PARTE 2: Análisis Estadístico ---
     print("\n--- Generando Estadísticas por Campeón ---")
     analyzer = ChampionAnalyzer(df)
     
-    # 1. Obtener Counters
     matchup_stats = analyzer.process_matchups()
-    
-    # 2. Obtener Runas
     rune_stats = analyzer.process_runes()
     
-    # Guardamos los resultados en JSON
     output_dir = Path("data/processed")
     output_dir.mkdir(exist_ok=True)
     
@@ -180,12 +167,7 @@ def main() -> None:
     with open(output_dir / "champion_runes.json", "w") as f:
         json.dump(rune_stats, f, indent=2)
 
-    print(f"Estadísticas guardadas en {output_dir}")
-    
-    # Ejemplo de impresión para verificar
-    example_champ_id = list(matchup_stats.keys())[0]
-    print(f"\nEjemplo stats para Champ ID {example_champ_id}:")
-    print(f"Peores matchups (Counters): {matchup_stats[example_champ_id]['counters'][:3]}")
+    print(f"Estadísticas JSON actualizadas en {output_dir}")
 
 if __name__ == "__main__":
     main()

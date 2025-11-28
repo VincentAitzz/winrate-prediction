@@ -239,8 +239,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const teamChampions = parseChampionInputs("team");
     const enemyChampions = parseChampionInputs("enemy");
 
-    if (teamChampions.length === 0 || enemyChampions.length === 0) {
-      errorMessage.textContent = "Selecciona al menos 1 campeón por equipo.";
+    if (teamChampions.length < 5 || enemyChampions.length < 5) {
+      errorMessage.textContent = "Debes seleccionar los 5 campeones de cada equipo para predecir.";
       errorMessage.classList.remove("hidden");
       return;
     }
