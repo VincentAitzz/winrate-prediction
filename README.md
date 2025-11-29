@@ -74,6 +74,7 @@ app/
   services/
     features.py
     model.py
+    analyzer.py
   frontend/
     templates/
       index.html
