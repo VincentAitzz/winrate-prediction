@@ -112,7 +112,7 @@ README.md
 
 1. Instalar dependencias
 ```bash
-poetry install
+poetry install --no-root
 ```
 2. Configurar variables de entorno
 ```bash
@@ -126,7 +126,7 @@ poetry run python -m scripts.process_matches
 ```
 4. Entrenar el modelo
 ```bash
-poetry run python -m scripts.train_model4
+poetry run python -m scripts.train_model
 ```
 5. Levantar el servidor
 ```bash
@@ -134,7 +134,7 @@ poetry run uvicorn app.main:app --reload
 ```
 
 Frontend predicción: http://127.0.0.1:8000/
-
+  
 Dashboard: http://127.0.0.1:8000/dashboard
 
 Docs API: http://127.0.0.1:8000/docs
